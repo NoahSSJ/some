@@ -10,6 +10,8 @@ import hashlib
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sqlite3
+import mysql.connect
+import redis
 
 
 class Spider():
@@ -105,23 +107,55 @@ class Spider():
         self.session.headers['x-client-sign'] = x_client_sign
         return self.session.headers.copy()
     
+    # def build_db(self):
+    #     conn = sqlite3.connect('hnw.db')
+    #     sql = """
+    #         CREATE TABLE IF NOT EXISTS purchase (
+    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             uid TEXT NOT NULL,
+    #             purchase_id TEXT NOT NULL,
+    #             buy_title TEXT NOT NULL,
+    #             cate_name TEXT NOT NULL,
+    #             authentication TEXT NOT NULL,
+    #             qty_unit TEXT NOT NULL,
+    #             link_name TEXT NOT NULL,
+    #             explanation TEXT 
+    #         )
+    #     """
+    #     conn.execute(sql)
+    #     return conn
+    
     def build_db(self):
-        conn = sqlite3.connect('hnw.db')
+        conn = mysql.connector.connect(
+            host="localhost",
+            port=3306,
+            user="root",
+            password="你的密码",
+            database="hnw",       # 相当于原来的 hnw.db
+            charset="utf8mb4",    # 中文不乱码
+        )
         sql = """
             CREATE TABLE IF NOT EXISTS purchase (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                uid TEXT NOT NULL,
-                purchase_id TEXT NOT NULL,
-                buy_title TEXT NOT NULL,
-                cate_name TEXT NOT NULL,
-                authentication TEXT NOT NULL,
-                qty_unit TEXT NOT NULL,
-                link_name TEXT NOT NULL,
-                explanation TEXT 
-            )
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                uid VARCHAR(64) NOT NULL,
+                purchase_id VARCHAR(64) NOT NULL,
+                buy_title VARCHAR(255) NOT NULL,
+                cate_name VARCHAR(128) NOT NULL,
+                authentication VARCHAR(128) NOT NULL,
+                qty_unit VARCHAR(64) NOT NULL,
+                link_name VARCHAR(255) NOT NULL,
+                explanation TEXT
+            ) DEFAULT CHARSET=utf8mb4
         """
-        conn.execute(sql)
+        cur = conn.cursor()
+        cur.execute(sql)
+        conn.commit()
+        cur.close()
         return conn
+    
+    def generate_urls(self):
+        for i in range(1, 100):
+            page_num = i
 
     def get_data(self, page_num, page_size: int =10):
         headers = self.build_headers()
@@ -130,7 +164,7 @@ class Spider():
             'pageNumber': page_num,
             'pageSize': page_size,
         }
-        response = requests.post('https://pcapi.cnhnb.com/esearch-pc/api/transform/purchase/list', headers=headers, json=json_data)
+        response = self.session.post('https://pcapi.cnhnb.com/esearch-pc/api/transform/purchase/list', headers=headers, json=json_data)
         json_str = response.text
         json_dict = json.loads(json_str)
         # pprint(json_dict)
